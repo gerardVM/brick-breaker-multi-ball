@@ -21,13 +21,13 @@ defaultEnv :: Env
 defaultEnv =
     Env { title       = "BRICK BREAKER VIDEOGAME"
         , fps         = 15
-        , size        = (50, 20)
+        , size        = (75, 22)
         , velocity    = 1
-        , baselength  = 10
-        , bricklength = 3        
+        , baselength  = 15 * fst (size defaultEnv) `div` 100 -- ^ (%)
+        , bricklength = 7  * fst (size defaultEnv) `div` 100 -- ^ (%)     
         , numOfBricks = 0
         , posOfBricks = []
         , lifes       = 1
-        , wallsHeight = 12
-        , wallsGap    = 10
+        , wallsHeight = 60 * (snd (size defaultEnv) - 2) `div` 100 -- ^ (%)
+        , wallsGap    = 20 *  fst (size defaultEnv)      `div` 100 -- ^ (%)
         }

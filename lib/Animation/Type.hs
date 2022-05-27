@@ -17,8 +17,9 @@ data Object = Ball Int
 data GameStatus = Paused
                 | Playing
                 | Stopped
+                | Starting
                 | LevelComplete
-                | Restarted
+                | Restarting
                 deriving (Show)
 
 data UserInput  = MoveLeft

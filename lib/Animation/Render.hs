@@ -3,6 +3,7 @@ module Animation.Render where
 import Control.Monad.Trans.State.Strict (get)
 import Control.Monad.Trans.Reader (ask)
 import Control.Monad.Trans.Class (lift)
+import System.IO (hFlush, stdout, hSetBuffering, BufferMode(BlockBuffering))
 
 import Animation.Env (Env(..))
 import Animation.State (St(..))
@@ -10,8 +11,10 @@ import Animation.Type (Animation,Object(..), GameStatus(..))
 
 render :: Animation Env St ()
 render = do
+    lift $ lift $ hSetBuffering stdout $ BlockBuffering (Just 50)
     val <- renderVal
-    lift (lift (putStrLn val))
+    lift $ lift $ putStrLn val
+    lift $ lift $ hFlush stdout
 
 renderVal :: Animation Env St String
 renderVal = do
@@ -106,13 +109,13 @@ makeBox :: (Int, Int)
         -> String
 makeBox (numCols, numRows) baseL baseX (ballX, ballY) bricklength bricks wallHeight wG mWall status points title =
     unlines 
-        ([take (div (numCols - length title + 4) 2) (repeat ' ') ++ title] ++ [" "] --  
+        ([" "] ++ [indent ++ take (div (numCols - length title + 4) 2) (repeat ' ') ++ title] ++ [" "] --  
         ++ case status of 
-              LevelComplete -> [celebratrionCartoon]
-              _             -> [   makeLine '-' '-' '·' numCols Nothing Nothing Nothing Nothing [] bricklength ]
+              LevelComplete -> [ celebratrionCartoon ]
+              _             -> [ indent ++ makeLine '-' '-' '·' numCols Nothing Nothing Nothing Nothing [] bricklength ]
                               ++   mappedPositions          
-                              ++ [ makeLine '-' '-' '·' numCols Nothing Nothing Nothing Nothing [] bricklength ]
-                              ++ ["Status: " ++ show status
+                              ++ [ indent ++ makeLine '-' '-' '·' numCols Nothing Nothing Nothing Nothing [] bricklength ]
+                              ++ [ indent ++ "Status: " ++ show status
                                  ++ if ballY /= numRows then   " | Score: " ++ show points 
                                     else  " | ***** GAME OVER ***** | Your Score is " ++ show points 
                                  ]
@@ -120,12 +123,21 @@ makeBox (numCols, numRows) baseL baseX (ballX, ballY) bricklength bricks wallHei
                            -- | Render menu according to status
                          
                               ++ [ case status of
-                                     Stopped       -> "Press (R) to Restart" ++ "\n" ++ "\n" -- ^ Necessary for inline space coherence
-                                     Paused        -> "Press (S) to Play"    ++ "\nPlayer 1: (A) Move Left       / (D) Move Right" 
-                                                                             ++ "\nPlayer 2: (J) Left Smart Wall / (L) Right Smart Wall"
-                                     Playing       -> "(P) Pause / (Q) Stop" ++ "\n(A) P1: Move Left  (D) P1: Move Right"
-                                                                             ++ "\n(J) P2: Left Wall  (L) P2: Right Wall"
-                                     _             -> "\n" ++ "\n"                           -- ^ Necessary for inline space coherence
+
+                                     Stopped       -> indent ++ "Press: (R) to Restart              "    ++ "\n" ++ "\n" -- ^ "\n" Necessary for inline space coherence
+
+                                     Paused        -> indent ++ "Press (P) to keep playing"                      ++ "\n"
+                                                   ++ indent ++ "Player 1: (A) Move Left       / (D) Move Right" ++ "\n"
+                                                   ++ indent ++ "Player 2: (J) Left Smart Wall / (L) Right Smart Wall"
+
+                                     Playing       -> indent ++ "(P) Pause / (Q) Stop"                           ++ "\n"
+                                                   ++ indent ++ "Player 1: (A) Move Left / (D) Move Right"       ++ "\n"
+                                                   ++ indent ++ "Player 2: (J) Left Wall / (L) Right Wall"
+
+                                     Starting      -> indent ++ "Press: (S) to Play / (R) to rearrange Bricks"   ++ "\n"
+                                                   ++ indent ++ "Player 1: (A) Move Left       / (D) Move Right" ++ "\n"
+                                                   ++ indent ++ "Player 2: (J) Left Smart Wall / (L) Right Smart Wall"
+                                     _             ->                                                       "\n" ++ "\n" -- ^ "\n" Necessary for inline space coherence
                                  ]
 
                            -- | Uncomment these lines for debugging purposes 
@@ -136,8 +148,8 @@ makeBox (numCols, numRows) baseL baseX (ballX, ballY) bricklength bricks wallHei
 --                               ]
         )
 
-    where   positions       = [0 .. numRows]
-            mappedPositions = map lineMaker positions
+    where   indent          = take 20 $ repeat ' '
+            mappedPositions = map lineMaker [0 .. numRows]
 
          -- | Painting lines depending on the Y of the different elements
             
@@ -145,64 +157,68 @@ makeBox (numCols, numRows) baseL baseX (ballX, ballY) bricklength bricks wallHei
               let brickYPositions = filter ((==) y . snd . brickPosition) bricks
                in if y == ballY
                     then if y == numRows - 1
-                         then           makeLine '|' ' ' ' ' numCols Nothing   (Just (Ball ballX)) (Just (Base baseL baseX)) Nothing brickYPositions bricklength
+                         then           indent ++ makeLine '|' ' ' ' ' numCols Nothing   (Just (Ball ballX)) (Just (Base baseL baseX)) Nothing brickYPositions bricklength
                          else if yWallEnds y
-                              then      makeLine '|' ' ' '*' numCols (Just wG) (Just (Ball ballX)) Nothing                   mWall   brickYPositions bricklength
+                              then      indent ++ makeLine '|' ' ' '*' numCols (Just wG) (Just (Ball ballX)) Nothing                   mWall   brickYPositions bricklength
                          else if yWallRange y
-                              then      makeLine '|' ' ' '║' numCols Nothing   (Just (Ball ballX)) Nothing                   mWall   brickYPositions bricklength
-                              else      makeLine '|' ' ' ' ' numCols Nothing   (Just (Ball ballX)) Nothing                   Nothing brickYPositions bricklength
+                              then      indent ++ makeLine '|' ' ' '║' numCols Nothing   (Just (Ball ballX)) Nothing                   mWall   brickYPositions bricklength
+                              else      indent ++ makeLine '|' ' ' ' ' numCols Nothing   (Just (Ball ballX)) Nothing                   Nothing brickYPositions bricklength
                     else if y == numRows - 1
-                         then           makeLine '|' ' ' ' ' numCols Nothing   Nothing             (Just (Base baseL baseX)) Nothing brickYPositions bricklength
+                         then           indent ++ makeLine '|' ' ' ' ' numCols Nothing   Nothing             (Just (Base baseL baseX)) Nothing brickYPositions bricklength
                          else if yWallEnds y 
-                              then      makeLine '|' ' ' '*' numCols (Just wG) Nothing             Nothing                   mWall   brickYPositions bricklength
-                         else if yWallUpperPart y && yWallRange y 
-                              then      makeLine '|' ' ' '║' numCols Nothing   Nothing             Nothing                   mWall   brickYPositions bricklength
-                         else if yWallLowerPart y && yWallRange y 
-                              then      makeLine '|' ' ' '║' numCols Nothing   Nothing             Nothing                   mWall   brickYPositions bricklength
+                              then      indent ++ makeLine '|' ' ' '*' numCols (Just wG) Nothing             Nothing                   mWall   brickYPositions bricklength
+                         else if yWallUpperPart y  
+                              then      indent ++ makeLine '|' ' ' '║' numCols Nothing   Nothing             Nothing                   mWall   brickYPositions bricklength
+                         else if yWallLowerPart y  
+                              then      indent ++ makeLine '|' ' ' '║' numCols Nothing   Nothing             Nothing                   mWall   brickYPositions bricklength
                          else if yWallBallRange y && yWallRange y
-                              then      makeLine '|' ' ' '║' numCols Nothing   Nothing             Nothing                   mWall   brickYPositions bricklength
-                              else      makeLine '|' ' ' ' ' numCols Nothing   Nothing             Nothing                   Nothing brickYPositions bricklength
+                              then      indent ++ makeLine '|' ' ' '║' numCols Nothing   Nothing             Nothing                   mWall   brickYPositions bricklength
+                              else      indent ++ makeLine '|' ' ' ' ' numCols Nothing   Nothing             Nothing                   Nothing brickYPositions bricklength
             
         -- | Conditions to choose which part of the Smart Walls needs to be painted
 
-            yWallBallRange y  = abs (ballY - y) <= 1
+            yWallBallRange y  = abs (y - ballY)        <=   1
 
-            yWallEnds y       = y == div (numRows - 2 - wallHeight) 2 - 1 || y == div (numRows - 2 + wallHeight) 2 + 1
+            yWallRange y      = abs (fromWallCenter y) <=   div wallHeight 2
 
-            yWallUpperPart y  = y < div (numRows - 2) 2 - (div wallHeight 2 - 1)  && ballY < div (numRows - 2) 2 - (div wallHeight 2 - 1)
+            yWallEnds y       = abs (fromWallCenter y) ==   div wallHeight 2 + 1   
 
-            yWallLowerPart y  = y > div (numRows - 2) 2 +  div wallHeight 2 - 1  && ballY > div (numRows - 2) 2 +  div wallHeight 2 - 1
+            yWallUpperPart y  =      fromWallCenter y  == - div wallHeight 2 
+                              && fromWallCenter ballY  <= - div wallHeight 2 
 
-            yWallRange y      = abs (y - div (numRows - 2) 2) <= div wallHeight 2
+            yWallLowerPart y  =      fromWallCenter y  ==   div wallHeight 2 
+                              && fromWallCenter ballY  >=   div wallHeight 2
 
-            celebratrionCartoon = "\n                /`_.----._"
-                                    ++"\n              .¨ _,=<'¨=. ¨,/|   Hey you did great."
-                                    ++"\n             /,-'    ¨=.`.   (   You're almost as good as Sulley!"
-                                    ++"\n            //         ` |    `"
-                                    ++"\n           /,    _.,.   |      `    (|"
-                                    ++"\n         ,¨ |   ,`'v/', |       `  _)("
-                                    ++"\n        /   |   !>(¨)<|/         ` c_ `"
-                                    ++"\n     _-/     `  '=,Z``7           . C. `       ¡CONGRATULATIONS!"         
-                                    ++"\n _,-¨ V  /    '-._,>*¨     `      |   ` `"
-                                    ++"\n `  <¨|  )` __ __ ____ _    Y     |    ` `"
-                                    ++"\n  ` ` |   >._____________.< |     ¨-.   ` `"
-                                    ++"\n   ` `|   ` `/`/`/`/`/`/ /' /    =_  '-._) `"
-                                    ++"\n    ` (    `            /         |¨*=,_   /"
-                                    ++"\n     ` `    `_/`/`/`/`_/         /      ¨¨¨"
-                                    ++"\n     _).^     ¨******¨          /"
-                                    ++"\n    (()!|`                     /      Your Score: " ++ show points ++ " points"
-                                    ++"\n     *==¨ ¨,                 ,¨"
-                                    ++"\n            ¨,_            ,¨"
-                                    ++"\n               `¨*<==> ,=*¨"
-                                    ++"\n                ` ` / /"
-                                    ++"\n            _____>_V /"
-                                    ++"\n           f  .-----¨"
-                                    ++"\n           |  `    ` `                   Next Level - Press SPACE"
-                                    ++"\n           |   `    ` '-."
-                                    ++"\n           J    `    `   `"
-                                    ++"\n          (  ` ` ` _.-J   )"
-                                    ++"\n           `V)V)=*.','  ,'"
-                                    ++"\n               (V(V)(V)/"
+            fromWallCenter x  = x - div (numRows - 2) 2
+
+            celebratrionCartoon = "\n"++indent++"                 /`_.----._"
+                                    ++"\n"++indent++"              .¨ _,=<'¨=. ¨,/|   Hey you did great."
+                                    ++"\n"++indent++"             /,-'    ¨=.`.   (   You're almost as good as Sulley!"
+                                    ++"\n"++indent++"            //         ` |    `"
+                                    ++"\n"++indent++"           /,    _.,.   |      `    (|"
+                                    ++"\n"++indent++"         ,¨ |   ,`'v/', |       `  _)("
+                                    ++"\n"++indent++"        /   |   !>(¨)<|/         ` c_ `"
+                                    ++"\n"++indent++"     _-/     `  '=,Z``7           . C. `       ¡CONGRATULATIONS!"         
+                                    ++"\n"++indent++" _,-¨ V  /    '-._,>*¨     `      |   ` `"
+                                    ++"\n"++indent++" `  <¨|  )` __ __ ____ _    Y     |    ` `"
+                                    ++"\n"++indent++"  ` ` |   >._____________.< |     ¨-.   ` `"
+                                    ++"\n"++indent++"   ` `|   ` `/`/`/`/`/`/ /' /    =_  '-._) `"
+                                    ++"\n"++indent++"    ` (    `            /         |¨*=,_   /"
+                                    ++"\n"++indent++"     ` `    `_/`/`/`/`_/         /      ¨¨¨"
+                                    ++"\n"++indent++"     _).^     ¨******¨          /"
+                                    ++"\n"++indent++"    (()!|`                     /      Your Score: " ++ show points ++ " points"
+                                    ++"\n"++indent++"     *==¨ ¨,                 ,¨"
+                                    ++"\n"++indent++"            ¨,_            ,¨"
+                                    ++"\n"++indent++"               `¨*<==> ,=*¨"
+                                    ++"\n"++indent++"                ` ` / /"
+                                    ++"\n"++indent++"            _____>_V /"
+                                    ++"\n"++indent++"           f  .-----¨"
+                                    ++"\n"++indent++"           |  `    ` `                   Next Level - Press SPACE"
+                                    ++"\n"++indent++"           |   `    ` '-."
+                                    ++"\n"++indent++"           J    `    `   `"
+                                    ++"\n"++indent++"          (  ` ` ` _.-J   )"
+                                    ++"\n"++indent++"           `V)V)=*.','  ,'"
+                                    ++"\n"++indent++"               (V(V)(V)/"
 
             {-
                                     "                        .-."

@@ -1,5 +1,14 @@
 module Main where
 
+import Control.Concurrent (threadDelay)
+import System.Random (randomRIO)
+import Data.List (nubBy)
+
+import Control.Monad.Trans.State.Strict (put, get)
+import Control.Monad.Trans.Reader (ask)
+import Control.Monad.Trans.Class (lift)
+import Animation.Type (GameStatus(..))
+
 import Animation
     ( Animation
     , Direction(..)
@@ -14,25 +23,14 @@ import Animation
     , bricksInPlace
     )
 
-import Control.Concurrent (threadDelay)
-import System.Random (randomRIO)
-import Data.List (nubBy)
-
-import Control.Monad.Trans.State.Strict (put, get)
-import Control.Monad.Trans.Reader (ask)
-import Control.Monad.Trans.Class (lift)
-import Animation.Type (GameStatus(..))
-
 putInitialState :: Animation Env St ()
 putInitialState = do
     (Env _ _ (width, height) _ baselength bricklength _ _ lifes _ _) <- ask
-    posX <- lift $ lift $ randomRIO (div width  3, (*) 2 $ div width  3)
-    posY <- lift $ lift $ randomRIO (div height 3, (*) 2 $ div height 3)
     dirX <- lift $ lift $ fmap directionFromInt $ randomRIO (1, 2)
-    dirY <- lift $ lift $ fmap directionFromInt $ randomRIO (1, 2)
-    let maxBlocks = div (width * (height - 4)) . (*) bricklength in do
- 
+    
     -- | Creation of a random number of blocks limited by a desired maximum number.
+
+    let maxBlocks = div (width * (height - 4)) . (*) bricklength in do
 
         randNumBlocks  <- lift $ lift $ randomRIO (0, maxBlocks 4)
     
@@ -43,14 +41,14 @@ putInitialState = do
              
     -- | Giving parameters to our initial state
         
-        lift $ put $ St (posX, posY) 
-                        (dirX, dirY) 
-                        (div (width - baselength) 2) 
+        lift $ put $ St (div width 2, height - 2)
+                        (dirX       , Negative  )
+                        (div (width - baselength) 2)
                         (bricksInPlace width distBlocks lifes bricklength) 
                         Nothing 
                         0 
                         [] 
-                        Paused    
+                        Starting    
 
  -- | Management of the animation. Interrupted if game Restarted
 
@@ -60,8 +58,8 @@ animate = do
     st <- lift get
     env <- ask
     case (status st) of
-        Restarted -> putInitialState
-        _         -> next
+        Restarting -> putInitialState
+        _          -> next
     lift $ lift $ threadDelay $ 1000000 `div` (fps env)
     animate
 

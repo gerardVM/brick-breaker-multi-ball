@@ -3,7 +3,7 @@ module Animation.State where
 import Control.Monad.Trans.State.Strict (get, put)
 import Control.Monad.Trans.Reader (ask)
 import Control.Monad.Trans.Class (lift)
-import System.IO (hReady, Handle(..), stdin, stdout, hSetEcho, hSetBuffering, BufferMode(NoBuffering))
+import System.IO (hReady, Handle(..), stdin, hSetEcho, hSetBuffering, BufferMode(NoBuffering))
 import Data.Char (toUpper, toLower)
 
 import Animation.Env (Env(..))
@@ -98,113 +98,65 @@ nextInternal (Env _ _ (width, height) velocity baselength bricklength _ _ _ wall
    
     case prevStatus of
         Paused        -> case userInput of 
-                              Just Start   -> prevSt {status = Playing}
+                              Just Pause   -> prevSt {status = Playing}
                               Just Stop    -> prevSt {status = Stopped}
                               _            -> prevSt
         Stopped       -> case userInput of 
-                              Just Restart -> prevSt {status = Restarted}
+                              Just Restart -> prevSt {status = Restarting}
                               _            -> prevSt
+        Starting      -> case userInput of 
+                              Just Restart -> prevSt {status = Restarting}
+                              Just Start   -> prevSt {status = Playing}
+                              _            -> prevSt { position   = (newBXPos + div baselength 2, prevY)
+                                                     , bXPosition = newBXPos 
+                                                     , walls      = newWalls
+                                                     , userInputs = newInputs }
         LevelComplete -> case userInput of 
-                              Just Restart -> prevSt {status = Restarted}
+                              Just Restart -> prevSt {status = Restarting}
                               _            -> prevSt
         Playing       -> if prevBricks /= [] then
                             case userInput of 
                                 Just Stop  -> prevSt {status = Stopped}
                                 Just Pause -> prevSt {status = Paused }
-
-                             -- | Update the state of the base and read it. Repeating Input or reaching limit interrupts the action
-                                
-                                Just MoveLeft ->
-                                      if elem MoveRight readInputs || elem MoveLeft readInputs
-                                        then St                                         
-                                               { position   = (newX, newY)
-                                               , direction  = (newXDir, newYDir)
-                                               , bXPosition = prevBXPos
-                                               , bricks     = newBricks
-                                               , points     = newPoints
-                                               , status     = newStatus
-                                               , walls      = newWalls
-                                               , userInputs = newInputs
-                                               }                            
-                                        else St 
-                                               { position   = (newX, newY)
-                                               , direction  = (newXDir, newYDir)
-                                               , bXPosition = newBXPosition (-2)
-                                               , bricks     = newBricks
-                                               , points     = newPoints
-                                               , status     = newStatus
-                                               , walls      = newWalls
-                                               , userInputs = MoveLeft : newInputs
-                                               }
-                                Just MoveRight ->
-                                      if elem MoveLeft readInputs || elem MoveRight readInputs 
-                                        then St                                         
-                                               { position   = (newX, newY)
-                                               , direction  = (newXDir, newYDir)
-                                               , bXPosition = prevBXPos
-                                               , bricks     = newBricks
-                                               , points     = newPoints
-                                               , status     = newStatus
-                                               , walls      = newWalls
-                                               , userInputs = newInputs
-                                               }
-                                        else St 
-                                               { position   = (newX, newY)
-                                               , direction  = (newXDir, newYDir)
-                                               , bXPosition = newBXPosition (2)
-                                               , bricks     = newBricks
-                                               , points     = newPoints
-                                               , status     = newStatus
-                                               , walls      = newWalls
-                                               , userInputs = MoveRight : newInputs
-                                               }
-                                _  -> 
-                                      if elem MoveLeft readInputs && prevBXPos > 0 
-                                        then St 
-                                               { position   = (newX, newY)
-                                               , direction  = (newXDir, newYDir)
-                                               , bXPosition = newBXPosition (-2)
-                                               , bricks     = newBricks
-                                               , points     = newPoints
-                                               , status     = newStatus
-                                               , walls      = newWalls
-                                               , userInputs = MoveLeft : newInputs
-                                               }
-                                 else if elem MoveRight readInputs && prevBXPos + baselength < width
-                                        then St 
-                                               { position   = (newX, newY)
-                                               , direction  = (newXDir, newYDir)
-                                               , bXPosition = newBXPosition ( 2)
-                                               , bricks     = newBricks
-                                               , points     = newPoints
-                                               , status     = newStatus
-                                               , walls      = newWalls
-                                               , userInputs = MoveRight : newInputs
-                                               }
-                                        else St 
-                                               { position   = (newX, newY)
-                                               , direction  = (newXDir, newYDir)
-                                               , bXPosition = prevBXPos
-                                               , bricks     = newBricks
-                                               , points     = newPoints
-                                               , status     = newStatus
-                                               , walls      = newWalls
-                                               , userInputs = newInputs
-                                               }
+                                _  -> St 
+                                           { position   = (newX, newY)
+                                           , direction  = (newXDir, newYDir)
+                                           , bXPosition = newBXPos
+                                           , bricks     = newBricks
+                                           , points     = newPoints
+                                           , status     = newStatus
+                                           , walls      = newWalls
+                                           , userInputs = newInputs
+                                           }
                          else prevSt {status = LevelComplete }
 
     where
  
- -- | New_Unbounded tells us which would be the position of the ball if there is no bound (Very handy)
+ -- | New_Unbounded tells us which would be the position of the ball if there is no bounding
    
     newXUnbounded          = prevX + directionToMultiplier prevXDir * velocity
     newYUnbounded          = prevY + directionToMultiplier prevYDir * velocity
 
+ -- | Position control of the base limited by the width - Repeating Input interrupts the action
+    
+    newBXPos = baseDecisionTree userInput readInputs (moveBase (-2)) (moveBase ( 2)) prevBXPos 
+
+    moveBase i = let newBxPos = prevBXPos + i
+                       in if newBxPos + baselength >= width
+                          then width - baselength
+                          else if newBxPos <= 0
+                               then 0
+                               else newBxPos
+
  -- | Detection of collision with the base
     
-    baseCollision          = prevBXPos <= newX && prevBXPos + baselength >= newX
-                                               && newYUnbounded >= height - 2
- 
+    baseCollision          = newY >= height - 2 && newBXPos <= newX && newX <= newBXPos + baselength
+
+    baseCornerCollision    = newY >= height - 2 
+                          && not baseCollision 
+                          && ( newBXPos              <= newX + newX - prevX 
+                          &&   newBXPos + baselength >= newX + newX - prevX )
+
  -- | Auxiliary functions to consider the length of a brick, not just their position
  -- | completePositions returns a list of occupied positions given a list of Bricks
     
@@ -215,10 +167,10 @@ nextInternal (Env _ _ (width, height) velocity baselength bricklength _ _ _ wall
  -- | different cases: Collision with top or botton (brickCollisionY), collision with one side (brickCollisionX)   
  -- | or collision with a corner (cornerCollision)
     
-    targetX                = ( newXUnbounded + directionToMultiplier prevXDir, newY)
-    targetY                = ( newX, newYUnbounded + directionToMultiplier prevYDir)
-    cornerTarget           = ( newXUnbounded + directionToMultiplier prevXDir
-                             , newYUnbounded + directionToMultiplier prevYDir )
+    targetX                = ( newX + directionToMultiplier prevXDir, newY)
+    targetY                = ( newX, newY + directionToMultiplier prevYDir)
+    cornerTarget           = ( newX + directionToMultiplier prevXDir
+                             , newY + directionToMultiplier prevYDir )
     brickCollisionY        = elem targetY $ completePositions prevBricks
     brickCollisionX        = elem targetX $ completePositions prevBricks
     cornerCollision        = not brickCollisionX && not brickCollisionY 
@@ -268,32 +220,23 @@ nextInternal (Env _ _ (width, height) velocity baselength bricklength _ _ _ wall
         case prevXDir of
             Neutral  -> Neutral
             Positive ->
-                if newXUnbounded >= width  || brickCollisionX || cornerCollision || wallCollisionX || wallCornerCollision
+                if newXUnbounded >= width  || brickCollisionX || cornerCollision || wallCollisionX || wallCornerCollision || baseCornerCollision
                 then Negative
                 else Positive
             Negative ->
-                if newXUnbounded <= 0      || brickCollisionX || cornerCollision || wallCollisionX || wallCornerCollision
+                if newXUnbounded <= 0      || brickCollisionX || cornerCollision || wallCollisionX || wallCornerCollision || baseCornerCollision
                 then Positive
                 else Negative
     newYDir =
         case prevYDir of
             Neutral  -> Neutral
-            Positive -> if brickCollisionY || cornerCollision || baseCollision   || wallCollisionY || wallCornerCollision
+            Positive -> if brickCollisionY || cornerCollision || baseCollision   || wallCollisionY || wallCornerCollision || baseCornerCollision
                             then Negative
                             else Positive
             Negative ->
                 if newYUnbounded <= 0      || brickCollisionY || cornerCollision || wallCollisionY || wallCornerCollision
                 then Positive
                 else Negative
-    
- -- | Position control of the base limited by the width
-    
-    newBXPosition i = let newBxPos = prevBXPos + i
-                       in if newBxPos + baselength > width
-                          then prevBXPos
-                          else if newBxPos <= 0
-                               then 0
-                               else newBxPos
     
  -- | Update status in case the player is unable to bounce back the ball
     
@@ -349,10 +292,19 @@ nextInternal (Env _ _ (width, height) velocity baselength bricklength _ _ _ wall
                        Just RightWall -> Just $ Wall $ Right (width - wallsGap)
                        _              -> Nothing
 
- -- | Save the state of the walls and delete states of the base
+ -- | Read & record the UserInputs - Repeating Input interrupts the action
 
-    newInputs = case newWalls of 
+    newInputs = let wallInputs = case newWalls of  
                      Just (Wall (Left _))  -> [LeftWall] 
                      Just (Wall (Right _)) -> [RightWall] 
-                     _ -> [] 
+                     _ -> []
+                 in baseDecisionTree userInput readInputs (MoveLeft : wallInputs) (MoveRight : wallInputs) wallInputs
                            
+ -- | Decision helper function
+
+    baseDecisionTree uInput rInput efect1 efect2 noEfect = case uInput of 
+                                           Just MoveLeft  -> if not $ elem MoveRight rInput || elem MoveLeft  rInput then efect1 else noEfect
+                                           Just MoveRight -> if not $ elem MoveLeft  rInput || elem MoveRight rInput then efect2 else noEfect
+                                           _              -> if elem MoveLeft rInput && prevBXPos > 0 then efect1
+                                                               else if elem MoveRight rInput && prevBXPos + baselength < width then efect2
+                                                                 else noEfect
