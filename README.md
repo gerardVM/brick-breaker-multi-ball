@@ -19,3 +19,5 @@ the Left Smart Wall or the Right Smart Wall
 
 Controls for player 2: J - Left Wall (Same key for Enable and Disable)
                        L - Right Wall (Same key for Enable and Disable)
+
+ ![alt text](screenshot.jpg)

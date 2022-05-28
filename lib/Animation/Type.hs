@@ -20,7 +20,7 @@ data GameStatus = Paused
                 | Starting
                 | LevelComplete
                 | Restarting
-                deriving (Show)
+                deriving Show
 
 data UserInput  = MoveLeft
                 | MoveRight
@@ -31,7 +31,7 @@ data UserInput  = MoveLeft
                 | LeftWall
                 | RightWall
                 | Undefined
-                deriving (Eq) 
+                deriving Eq
 
 runAnimation :: env -> st -> Animation env st a -> IO a
 runAnimation env st action = evalStateT (runReaderT action env) st
