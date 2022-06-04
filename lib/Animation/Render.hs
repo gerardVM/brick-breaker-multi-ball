@@ -28,132 +28,113 @@ renderInternal env st = makeBox (size        env)
                                 (bXPosition  st ) 
                                 (position    st ) 
                                 (bricklength env) 
-                                (bricks      st )                                
-                                (wallsHeight env)
-                                (wallsGap    env) 
-                                (walls       st ) 
+                                (bricks      st )
+                                (multiplier  st ) 
                                 (status      st )
                                 (points      st )
                                 (title       env)
+                                (maxBalls    env)
 
--- | Definition of how each line is going to be rendered according to what is there. Oprions are:
--- | 1) Nothing / 2) Just bricks / 3) Just the ball / 4) Just the base / 5) The ball and bricks /
--- | 6) The ball and the base / (The base and bricks is not an option)
--- | New cases: 7) Just Wall / 8) Ball and Wall / 9) Wall and Bricks  / 10) Ball and Wall And Bricks 
--- | 11) All of them combined with the limits of the Smart Walls which always appear
+{-|
+  Definition of how each line is going to be rendered according to what is there. Oprions are:
+  1) Nothing / 2) Just bricks / 3) Just the ball / 4) Just the base / 5) The ball and bricks /
+  6) The ball and the base / (The base and bricks is not an option)
+  7) Ball and bricks combined with Multipliers
+-}
 
 makeLine :: Char 
          -> Char 
-         -> Char 
-         -> Char 
          -> Int 
-         -> Maybe Int
-         -> Maybe Object 
-         -> Maybe Object
+         -> Maybe [Object]
          -> Maybe Object
          -> [Object] 
          -> Int
+         -> Maybe [Object]
          -> String
 
-makeLine eCh iCh wCh0 wCh1 i mWG mBall mBase mWall bricks bricklength =
-    let positions = [0 .. i]
-        ball = '●'
-        renderPixel x =
-            case mBall of
-                Nothing -> case mBase of 
-                               Nothing           -> case mWG of 
-                                                        Just wG -> if x == wG || x == i - wG 
-                                                                   then case mWall of
-                                                                            Just ( Wall (Left  wx) ) -> if x == wx then printBlock x wCh1 
-                                                                                                                   else printBlock x wCh0
+makeLine eCh iCh i mBalls mBase bricks bricklength mMultiplier =
+    let positions  = [0 .. i]
+        ball       = '●'
+        multiplier = '☺'
+        base       = '═'
+        pickXBall       (Ball       (xPos, yPos)) = xPos
+        pickXMultiplier (Multiplier (xPos, yPos)) = xPos
+        renderPixel x = case mBalls of
+                        Nothing    -> case mBase of 
+                                          Nothing           -> case mMultiplier of 
+                                                                    Nothing          ->                                                    printBlock x iCh
+                                                                    Just multipliers -> if x `elem` (map pickXMultiplier multipliers) then multiplier            
+                                                                                                                                      else printBlock x iCh
+                                          Just (Base bl bx) -> case mMultiplier of 
+                                                                    Nothing          -> if x `elem` [bx..(bx+bl)]                     then base 
+                                                                                                                                      else iCh
 
-                                                                            Just ( Wall (Right wx) ) -> if x == wx then printBlock x wCh1 
-                                                                                                                   else printBlock x wCh0
+                                                                    Just multipliers -> if x `elem` [bx..(bx+bl)]                     then base 
+                                                                                   else if x `elem` (map pickXMultiplier multipliers) then multiplier
+                                                                                                                                      else iCh
+                        Just balls -> case mBase of 
+                                          Nothing           -> case mMultiplier of 
+                                                                    Nothing          -> if x `elem` (map pickXBall balls)             then ball 
+                                                                                                                                      else printBlock x iCh
 
-                                                                            _                        ->                 printBlock x wCh0
+                                                                    Just multipliers -> if x `elem` (map pickXBall balls)             then ball 
+                                                                                   else if x `elem` (map pickXMultiplier multipliers) then multiplier            
+                                                                                                                                      else printBlock x iCh
+                                          Just (Base bl bx) -> case mMultiplier of 
+                                                                    Nothing          -> if x `elem` (map pickXBall balls)             then ball 
+                                                                                   else if x `elem` [bx..(bx+bl)]                     then base
+                                                                                                                                      else iCh
 
-                                                                   else                                                 printBlock x iCh
-                                                        Nothing -> case mWall of
-                                                                            Just ( Wall (Left  wx) ) -> if x == wx then printBlock x wCh1 
-                                                                                                                   else printBlock x iCh
-
-                                                                            Just ( Wall (Right wx) ) -> if x == wx then printBlock x wCh1 
-                                                                                                                   else printBlock x iCh
-
-                                                                            _                        ->                 printBlock x iCh
-                               Just (Base bl bx) -> if x `elem` [bx..(bx+bl)] then '═' else iCh
-                                 
-                Just (Ball b) -> case mBase of 
-                               Nothing           -> case mWG of 
-                                                        Just wG -> if x == b then ball 
-                                                              else if x == wG || x == i - wG
-                                                                   then case mWall of
-                                                                            Just ( Wall (Left  wx) ) -> if x == wx then printBlock x wCh1 
-                                                                                                                   else printBlock x wCh0
-
-                                                                            Just ( Wall (Right wx) ) -> if x == wx then printBlock x wCh1 
-                                                                                                                   else printBlock x wCh0
-
-                                                                            _                        ->                 printBlock x wCh0
-                                                                   else printBlock x iCh
-                                                        Nothing -> case mWall of
-                                                                            Just ( Wall (Left  wx) ) -> if x == b  then ball 
-                                                                                                   else if x == wx then printBlock x wCh1 
-                                                                                                                   else printBlock x iCh
-
-                                                                            Just ( Wall (Right wx) ) -> if x == b  then ball 
-                                                                                                   else if x == wx then printBlock x wCh1 
-                                                                                                                   else printBlock x iCh
-
-                                                                            _                        -> if x == b  then ball 
-                                                                                                                   else printBlock x iCh
-                               Just (Base bl bx) -> if x == b then ball 
-                                                    else if x `elem` [bx..(bx+bl)] then '═' 
-                                                    else iCh
-                                
+                                                                    Just multipliers -> if x `elem` (map pickXBall balls)             then ball 
+                                                                                   else if x `elem` [bx..(bx+bl)]                     then base
+                                                                                   else if x `elem` (map pickXMultiplier multipliers) then multiplier
+                                                                                                                                      else iCh                                                                               
      in [eCh] ++ map renderPixel positions ++ [eCh]
      
-     -- | Finding if a pixel should belong to a brick considering its position and length
-     -- | If True, we paint it according to the life of the brick
+     -- Finding if a pixel should belong to a brick considering its position and length
+     -- If True, we paint it according to the life of the brick
      
      where brickXPositions = map (fst . brickPosition) bricks
            printBlock x ch = if x `elem` foldl (\u v  -> u ++ [v..(v+bricklength-1)]) [] brickXPositions
-                             then if (life $ pixelOwner x) > 1 then '█' else if (life $ pixelOwner x) > 0 then '▓' else '░' --'▒' else '░'
+                             then if (life $ pixelOwner x) > 1 then '█' else if (life $ pixelOwner x) > 0 then '▓' else '░'
                              else ch
            pixelOwner x    = head $ filter (\u -> x - fst (brickPosition u) < bricklength
                                                && x - fst (brickPosition u) >= 0 ) bricks
 
+-- | Painting lines depending on the Y coordinate of the different elements
+
 makeBox :: (Int, Int) 
         -> Int 
         -> Int 
-        -> (Int, Int) 
+        -> [(Int, Int)]
         -> Int 
         -> [Object] 
-        -> Int
-        -> Int
-        -> Maybe Object
+        -> [Object]
         -> GameStatus
         -> Int
         -> String
+        -> Int
         -> String
-makeBox (numCols, numRows) baseL baseX (ballX, ballY) bricklength bricks wallHeight wG mWall status points title =
+makeBox (numCols, numRows) baseL baseX ballPositions bricklength bricks multipliers status points title maxBalls =
     unlines 
-        ([" "] ++ [indent ++ take (div (numCols - length title + 4) 2) (repeat ' ') ++ title] ++ [" "] --  
+        ([" "] ++ [indent ++ take (div (numCols - length title + 4) 2) (repeat ' ') ++ title] 
+               ++ [indent ++ if bricks /= [] then "Score: " ++ show points else []]  
         ++ case status of 
               LevelComplete -> [ celebratrionCartoon ]
-              _             -> [ indent ++ makeLine '▄' '▄' ' ' ' ' numCols Nothing Nothing Nothing Nothing [] bricklength ]
+              _             -> [ indent ++ makeLine '▄' '▄' numCols Nothing Nothing [] bricklength Nothing ]
                               ++   mappedPositions          
-                            ++ [ indent ++ makeLine '▀' '▀' ' ' ' ' numCols Nothing Nothing Nothing Nothing [] bricklength ]
-                            ++ [ indent ++ "Status: " ++ show status
-                              ++ if ballY /= numRows then   " | Score: " ++ show points 
-                                 else  " | ***** GAME OVER ***** | Your Score is " ++ show points 
-                               ]
+                            ++ [ indent ++ makeLine '▀' '▀' numCols Nothing Nothing [] bricklength Nothing ]
+                            ++ [ indent ++ "Status: " ++ if ballPositions == [] then gameOver else show status    
+                                        ++ take   displaySpace                    ( repeat ' ' )
+                                        ++ take   numberOfBalls                   ( repeat '●' )
+                                        ++ take ( maxDisplay - numberOfBalls + 3) ( repeat '○' )
+                               ] 
                          
-                           -- | Render menu according to status
+                           -- Render menu according to status
                          
                             ++ [ case status of
 
-                                     Stopped       -> indent ++ "Press: (R) to Restart              "    ++ "\n" ++ "\n" -- ^ "\n" Necessary for inline space coherence
+                                     Stopped       -> indent ++ "Press: (R) to Restart              "    ++ "\n" ++ "\n"    -- "\n" Necessary for inline space coherence
 
                                      Paused        -> indent ++ "Press (P) to keep playing / (SPACE) Auto Mode"  ++ "\n"
                                                    ++ indent ++ "Player 1: (A) Move Left       / (D) Move Right" ++ "\n"
@@ -170,77 +151,70 @@ makeBox (numCols, numRows) baseL baseX (ballX, ballY) bricklength bricks wallHei
                                      Auto          -> indent ++ "(P) Pause / (Q) Stop"                           ++ "\n"
                                                    ++ indent ++ "Pause the game to remove Auto Mode"             ++ "\n"
 
-                                     _             ->                                                       "\n" ++ "\n" -- ^ "\n" Necessary for inline space coherence
+                                     _             ->                                                       "\n" ++ "\n"    -- "\n" Necessary for inline space coherence
                                ]
 
-                           -- | Uncomment these lines for debugging purposes 
+                           -- Uncomment these lines for debugging purposes 
 
---                            ++ [  "BaseX: " ++ show (baseX + div baseL 2) 
---                               ++ " | Ball: (" ++ show ballX ++ "," ++ show ballY ++ ")"
---                               ++ " | BallOverBase: "   ++ show (ballX >= baseX && (ballX <= (baseX + baseL)))
---                               ]
+--                              ++ [  indent ++ "Balls:       " ++ show ( take 9 ballPositions ) ]
+--
+--                              ++ [  indent ++ "Multipliers: " ++ show (
+--                                                                       let pickPosition []     = []            
+--                                                                           pickPosition (x:xs) = multiplierPosition x : pickPosition xs  
+--                                                                        in take 9 $ pickPosition multipliers
+--                                                                      ) 
+--                                 ]
+--
+--                              ++ [  indent ++ "BaseX: " ++ show (baseX + div baseL 2) ]   
+
         )
 
-    where   indent          = take 20 $ repeat ' '
+    where   numberOfBalls   = ( min ( maxDisplay + 3 ) $ div (length ballPositions) (div maxBalls maxDisplay - 1) + 1 )
+            maxDisplay      = div numCols 4
+            displaySpace    = numCols - length ("Status: " ++ show status) - maxDisplay
+            gameOver        = "***** GAME OVER *****"
+            indent          = take 20 $ repeat ' '
             mappedPositions = map lineMaker [0 .. numRows]
 
-         -- | Painting lines depending on the Y of the different elements
+         -- Painting lines depending on the Y of the different elements
             
             lineMaker y =
-              let brickYPositions  = filter ((==) y . snd . brickPosition) bricks
-
-         -- | Conditions to choose which part of the Smart Walls needs to be painted
-
-                  yWallBallRange y = abs (y - ballY)        <=   1 
-
-                  yWallRange y     = abs (fromWallCenter y) <    div wallHeight 2 
-
-                  yWallEnds y      = abs (fromWallCenter y) ==   div wallHeight 2
-
-                  yWallUpperPart y = fromWallCenter y       == - div wallHeight 2 + 1
-                                  && fromWallCenter ballY   <= - div wallHeight 2 + 1
-
-                  yWallLowerPart y = fromWallCenter y       ==   div wallHeight 2 - 1
-                                  && fromWallCenter ballY   >=   div wallHeight 2 - 1
-
-                  fromWallCenter x = x - div (numRows - 2) 2          
-
-                  eCh1 y           = if fromWallCenter y < 0 then '╦' else '╩'
-
-                  sCh y            = let lookLeft y  | y <  ballY = '╔' 
-                                                     | y == ballY = '║'
-                                                     | otherwise  = '╚'
-                                         lookRight y | y <  ballY = '╗'
-                                                     | y == ballY = '║'
-                                                     | otherwise  = '╝'
-                                      in case mWall of 
-                                              Just (Wall (Left  xPos)) -> if ballX <= xPos then lookLeft y else lookRight y
-                                              Just (Wall (Right xPos)) -> if ballX <= xPos then lookLeft y else lookRight y
-                                              Nothing                  -> ' '
-
-               in if y == ballY
+              let brickYPositions = filter ((==) y . snd . brickPosition) bricks
+                  balls           = map Ball $ filter ((==) y . snd) ballPositions
+                  multipliersInY  = filter ((==) y . snd . multiplierPosition) multipliers
+               in if balls /= []
 
                   then if y == numRows - 1
-                       then indent ++ makeLine '█' ' ' ' ' ' '      numCols Nothing   (Just (Ball ballX)) (Just (Base baseL baseX)) Nothing brickYPositions bricklength
 
-                       else if yWallEnds y
-                       then indent ++ makeLine '█' ' ' '·' (eCh1 y) numCols (Just wG) (Just (Ball ballX)) Nothing                   mWall   brickYPositions bricklength
+                       then if (multipliersInY /= [])
 
-                       else if yWallRange y
-                       then indent ++ makeLine '█' ' ' ' ' (sCh y ) numCols Nothing   (Just (Ball ballX)) Nothing                   mWall   brickYPositions bricklength
+                            then indent ++ makeLine '█' ' ' numCols (Just balls) (Just (Base baseL baseX)) brickYPositions bricklength (Just multipliersInY)
+                    
+                            else indent ++ makeLine '█' ' ' numCols (Just balls) (Just (Base baseL baseX)) brickYPositions bricklength Nothing
 
-                       else indent ++ makeLine '█' ' ' ' ' ' '      numCols Nothing   (Just (Ball ballX)) Nothing                   Nothing brickYPositions bricklength
+                       else if multipliersInY /= []
+
+                       then      indent ++ makeLine '█' ' ' numCols (Just balls) Nothing                   brickYPositions bricklength (Just multipliersInY)
+
+                       else      indent ++ makeLine '█' ' ' numCols (Just balls) Nothing                   brickYPositions bricklength Nothing
+
+                       
 
                   else if y == numRows - 1
-                       then indent ++ makeLine '█' ' ' ' ' ' '      numCols Nothing   Nothing             (Just (Base baseL baseX)) Nothing brickYPositions bricklength
 
-                       else if yWallEnds y 
-                       then indent ++ makeLine '█' ' ' '·' (eCh1 y) numCols (Just wG) Nothing             Nothing                   mWall   brickYPositions bricklength
+                       then if (multipliersInY /= [])
 
-                       else if yWallUpperPart y || yWallLowerPart y || (yWallBallRange y && yWallRange y)
-                       then indent ++ makeLine '█' ' ' ' ' (sCh y ) numCols Nothing   Nothing             Nothing                   mWall   brickYPositions bricklength
+                            then indent ++ makeLine '█' ' ' numCols Nothing (Just (Base baseL baseX)) brickYPositions bricklength (Just multipliersInY)
+                    
+                            else indent ++ makeLine '█' ' ' numCols Nothing (Just (Base baseL baseX)) brickYPositions bricklength Nothing
 
-                       else indent ++ makeLine '█' ' ' ' ' ' '      numCols Nothing   Nothing             Nothing                   Nothing brickYPositions bricklength
+                       else if multipliersInY /= []
+
+                       then      indent ++ makeLine '█' ' ' numCols Nothing Nothing                   brickYPositions bricklength (Just multipliersInY)
+
+                       else      indent ++ makeLine '█' ' ' numCols Nothing Nothing                   brickYPositions bricklength Nothing
+
+
 
             celebratrionCartoon = "\n"++indent++"                 /`_.----._"
                                     ++"\n"++indent++"              .¨ _,=<'¨=. ¨,/|   Hey you did great."

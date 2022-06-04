@@ -7,8 +7,8 @@ import Data.List (nubBy)
 import Control.Monad.Trans.State.Strict (put, get)
 import Control.Monad.Trans.Reader (ask)
 import Control.Monad.Trans.Class (lift)
+import Levels.Levels (level_1)
 import Animation.Type (GameStatus(..))
-
 import Animation
     ( Animation
     , Direction(..)
@@ -23,34 +23,37 @@ import Animation
     , bricksInPlace
     )
 
+
 putInitialState :: Animation Env St ()
 putInitialState = do
-    (Env _ _ (width, height) _ baselength bricklength _ _ lifes _ _) <- ask
+    env@(Env _ _ (width, height) _ baselength bricklength _ lifes _ _ _) <- ask
     dirX <- lift $ lift $ fmap directionFromInt $ randomRIO (1, 2)
     
-    -- | Creation of a random number of blocks limited by a desired maximum number.
+    -- Creation of a random number of blocks limited by a desired maximum number.
 
-    let maxBlocks = div (width * (height - 4)) . (*) bricklength in do
+    let maxBricks = div (width * (height - 4)) . (*) bricklength in do
 
-        randNumBlocks  <- lift $ lift $ randomRIO (0, maxBlocks 4)
+        randNumBricks  <- lift $ lift $ randomRIO (0, maxBricks 4)
     
-    -- | Creation of a list of DIFFERENT positions. The range of available positions has to be divided by the bricklength so
-    -- | we can introduce the bricklength space afterwards in order to get bricks not to overlap
+    -- Creation of a list of DIFFERENT positions. The range of available positions has to be divided by the bricklength so
+    -- we can introduce the bricklength space afterwards in order to get bricks not to overlap
         
-        distBlocks <-  fmap (nubBy (==)) $ sequence $ replicate (randNumBlocks) $ randomRIO (1, maxBlocks 1)
+        distBricks <-  fmap (nubBy (==)) $ sequence $ replicate (randNumBricks) $ randomRIO (1, maxBricks 1)
              
-    -- | Giving parameters to our initial state
+    -- Giving parameters to our initial state
         
-        lift $ put $ St (div width 2, height - 2)
-                        (dirX       , Negative  )
+        lift $ put $ St [(div width 2, height - 2)]
+                        [(dirX       , Negative  )]
                         (div (width - baselength) 2)
-                        (bricksInPlace width distBlocks lifes bricklength) 
-                        Nothing 
+                        (level_1 env)
+                        -- (bricksInPlace width distBricks lifes bricklength)
+                        [] 
                         0 
                         [] 
-                        Starting    
+                        Starting  
+                        0  
 
- -- | Management of the animation. Interrupted if game Restarted
+ -- Management of the animation. Interrupted if game Restarted
 
 animate :: Animation Env St ()
 animate = do

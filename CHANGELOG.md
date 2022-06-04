@@ -1,5 +1,11 @@
 # Revision history for finale
 
+## 0.1.2.0 -- 2022-06-04
+
+Auto Mode feature included
+Smart walls and second player removed
+Multiple balls and bonus feature included
+
 ## 0.1.1.0 -- 2022-05-27
 
 New Status: Starting. You can now position the ball before start playing

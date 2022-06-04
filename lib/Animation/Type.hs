@@ -5,14 +5,16 @@ import Control.Monad.Trans.State.Strict (StateT(..), evalStateT)
 
 type Animation env st a = ReaderT env (StateT st IO) a
 
-data Object = Ball Int
+data Object = Ball (Int, Int)
             | Base Int Int
-            | Wall (Either Int Int)
+            | Multiplier { multiplierPosition :: (Int, Int) }
             | Brick 
                     { brickPosition :: (Int, Int) 
                     , life :: Int 
                     }
-        deriving Eq
+        deriving ( Eq
+                 , Show     -- ^ Show instance necessary for debugging
+                )  
     
 data GameStatus = Paused
                 | Playing
@@ -29,8 +31,6 @@ data UserInput  = MoveLeft
                 | Stop
                 | Start
                 | RestAuto
-                | LeftWall
-                | RightWall
                 | Undefined
                 deriving Eq
 
