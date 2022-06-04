@@ -64,14 +64,23 @@ makeLine eCh iCh wCh0 wCh1 i mWG mBall mBase mWall bricks bricklength =
                                Nothing           -> case mWG of 
                                                         Just wG -> if x == wG || x == i - wG 
                                                                    then case mWall of
-                                                                            Just ( Wall (Left  wx) ) -> if x == wx then printBlock x wCh1 else printBlock x wCh0
-                                                                            Just ( Wall (Right wx) ) -> if x == wx then printBlock x wCh1 else printBlock x wCh0
-                                                                            _                        -> printBlock x wCh0
-                                                                   else printBlock x iCh
+                                                                            Just ( Wall (Left  wx) ) -> if x == wx then printBlock x wCh1 
+                                                                                                                   else printBlock x wCh0
+
+                                                                            Just ( Wall (Right wx) ) -> if x == wx then printBlock x wCh1 
+                                                                                                                   else printBlock x wCh0
+
+                                                                            _                        ->                 printBlock x wCh0
+
+                                                                   else                                                 printBlock x iCh
                                                         Nothing -> case mWall of
-                                                                            Just ( Wall (Left  wx) ) -> if x == wx then printBlock x wCh1 else printBlock x iCh
-                                                                            Just ( Wall (Right wx) ) -> if x == wx then printBlock x wCh1 else printBlock x iCh
-                                                                            _                        -> printBlock x iCh
+                                                                            Just ( Wall (Left  wx) ) -> if x == wx then printBlock x wCh1 
+                                                                                                                   else printBlock x iCh
+
+                                                                            Just ( Wall (Right wx) ) -> if x == wx then printBlock x wCh1 
+                                                                                                                   else printBlock x iCh
+
+                                                                            _                        ->                 printBlock x iCh
                                Just (Base bl bx) -> if x `elem` [bx..(bx+bl)] then '═' else iCh
                                  
                 Just (Ball b) -> case mBase of 
@@ -79,18 +88,25 @@ makeLine eCh iCh wCh0 wCh1 i mWG mBall mBase mWall bricks bricklength =
                                                         Just wG -> if x == b then ball 
                                                               else if x == wG || x == i - wG
                                                                    then case mWall of
-                                                                            Just ( Wall (Left  wx) ) -> if x == wx then printBlock x wCh1 else printBlock x wCh0
-                                                                            Just ( Wall (Right wx) ) -> if x == wx then printBlock x wCh1 else printBlock x wCh0
-                                                                            _                        -> printBlock x wCh0
+                                                                            Just ( Wall (Left  wx) ) -> if x == wx then printBlock x wCh1 
+                                                                                                                   else printBlock x wCh0
+
+                                                                            Just ( Wall (Right wx) ) -> if x == wx then printBlock x wCh1 
+                                                                                                                   else printBlock x wCh0
+
+                                                                            _                        ->                 printBlock x wCh0
                                                                    else printBlock x iCh
                                                         Nothing -> case mWall of
                                                                             Just ( Wall (Left  wx) ) -> if x == b  then ball 
                                                                                                    else if x == wx then printBlock x wCh1 
                                                                                                                    else printBlock x iCh
+
                                                                             Just ( Wall (Right wx) ) -> if x == b  then ball 
                                                                                                    else if x == wx then printBlock x wCh1 
                                                                                                                    else printBlock x iCh
-                                                                            _                        -> if x == b  then ball else printBlock x iCh
+
+                                                                            _                        -> if x == b  then ball 
+                                                                                                                   else printBlock x iCh
                                Just (Base bl bx) -> if x == b then ball 
                                                     else if x `elem` [bx..(bx+bl)] then '═' 
                                                     else iCh
@@ -102,7 +118,7 @@ makeLine eCh iCh wCh0 wCh1 i mWG mBall mBase mWall bricks bricklength =
      
      where brickXPositions = map (fst . brickPosition) bricks
            printBlock x ch = if x `elem` foldl (\u v  -> u ++ [v..(v+bricklength-1)]) [] brickXPositions
-                             then if (life $ pixelOwner x) > 0 then '▒' else '░'
+                             then if (life $ pixelOwner x) > 1 then '█' else if (life $ pixelOwner x) > 0 then '▓' else '░' --'▒' else '░'
                              else ch
            pixelOwner x    = head $ filter (\u -> x - fst (brickPosition u) < bricklength
                                                && x - fst (brickPosition u) >= 0 ) bricks
@@ -139,17 +155,21 @@ makeBox (numCols, numRows) baseL baseX (ballX, ballY) bricklength bricks wallHei
 
                                      Stopped       -> indent ++ "Press: (R) to Restart              "    ++ "\n" ++ "\n" -- ^ "\n" Necessary for inline space coherence
 
-                                     Paused        -> indent ++ "Press (P) to keep playing"                      ++ "\n"
+                                     Paused        -> indent ++ "Press (P) to keep playing / (SPACE) Auto Mode"  ++ "\n"
                                                    ++ indent ++ "Player 1: (A) Move Left       / (D) Move Right" ++ "\n"
                                                    ++ indent ++ "Player 2: (J) Left Smart Wall / (L) Right Smart Wall"
 
-                                     Playing       -> indent ++ "(P) Pause / (Q) Stop"                           ++ "\n"
+                                     Playing       -> indent ++ "(P) Pause / (Q) Stop / (SPACE) Auto Mode"       ++ "\n"
                                                    ++ indent ++ "Player 1: (A) Move Left / (D) Move Right"       ++ "\n"
                                                    ++ indent ++ "Player 2: (J) Left Wall / (L) Right Wall"
 
                                      Starting      -> indent ++ "Press: (S) to Play / (R) to rearrange Bricks"   ++ "\n"
                                                    ++ indent ++ "Player 1: (A) Move Left       / (D) Move Right" ++ "\n"
                                                    ++ indent ++ "Player 2: (J) Left Smart Wall / (L) Right Smart Wall"
+
+                                     Auto          -> indent ++ "(P) Pause / (Q) Stop"                           ++ "\n"
+                                                   ++ indent ++ "Pause the game to remove Auto Mode"             ++ "\n"
+
                                      _             ->                                                       "\n" ++ "\n" -- ^ "\n" Necessary for inline space coherence
                                ]
 

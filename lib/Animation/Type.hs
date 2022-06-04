@@ -16,6 +16,7 @@ data Object = Ball Int
     
 data GameStatus = Paused
                 | Playing
+                | Auto
                 | Stopped
                 | Starting
                 | LevelComplete
@@ -27,7 +28,7 @@ data UserInput  = MoveLeft
                 | Pause
                 | Stop
                 | Start
-                | Restart
+                | RestAuto
                 | LeftWall
                 | RightWall
                 | Undefined

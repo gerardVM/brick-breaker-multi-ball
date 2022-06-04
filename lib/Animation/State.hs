@@ -74,8 +74,8 @@ getUserInput = go Nothing
                                                 | x `isChar` 'p' = Pause     
                                                 | x `isChar` 'q' = Stop      
                                                 | x `isChar` 's' = Start     
-                                                | x `isChar` 'r' = Restart   
-                                                | x `isChar` ' ' = Restart   
+                                                | x `isChar` 'r' = RestAuto   
+                                                | x `isChar` ' ' = RestAuto   
                                                 | x `isChar` 'j' = LeftWall  
                                                 | x `isChar` 'l' = RightWall 
                                                 | otherwise      = Undefined 
@@ -98,35 +98,52 @@ nextInternal (Env _ _ (width, height) velocity baselength bricklength _ _ _ wall
    
     case prevStatus of
         Paused        -> case userInput of 
-                              Just Pause   -> prevSt {status = Playing}
-                              Just Stop    -> prevSt {status = Stopped}
-                              _            -> prevSt
+                              Just Pause    -> prevSt {status = Playing}
+                              Just Stop     -> prevSt {status = Stopped}
+                              Just RestAuto -> prevSt {status = Auto   }
+                              _             -> prevSt
         Stopped       -> case userInput of 
-                              Just Restart -> prevSt {status = Restarting}
-                              _            -> prevSt
+                              Just RestAuto -> prevSt {status = Restarting}
+                              _             -> prevSt
         Starting      -> case userInput of 
-                              Just Restart -> prevSt {status = Restarting}
-                              Just Start   -> prevSt {status = Playing}
-                              _            -> prevSt { position   = (newBXPos + div baselength 2, prevY)
-                                                     , bXPosition = newBXPos 
-                                                     , walls      = newWalls
-                                                     , userInputs = newInputs }
+                              Just RestAuto -> prevSt {status = Restarting }
+                              Just Start    -> prevSt {status = Playing    }     
+                              _             -> prevSt { position   = (newBXPos + div baselength 2, prevY)
+                                                      , bXPosition = newBXPos 
+                                                      , walls      = newWalls
+                                                      , userInputs = newInputs }
         LevelComplete -> case userInput of 
-                              Just Restart -> prevSt {status = Restarting}
-                              _            -> prevSt
+                              Just RestAuto -> prevSt {status = Restarting}
+                              _             -> prevSt
         Playing       -> if prevBricks /= [] then
                             case userInput of 
-                                Just Stop  -> prevSt {status = Stopped}
-                                Just Pause -> prevSt {status = Paused }
+                                Just Stop      -> prevSt {status = Stopped}
+                                Just Pause     -> prevSt {status = Paused }
+                                Just RestAuto  -> prevSt {status = Auto   }
                                 _  -> St 
                                            { position   = (newX, newY)
                                            , direction  = (newXDir, newYDir)
                                            , bXPosition = newBXPos
                                            , bricks     = newBricks
-                                           , points     = newPoints
-                                           , status     = newStatus
                                            , walls      = newWalls
+                                           , points     = newPoints
                                            , userInputs = newInputs
+                                           , status     = newStatus
+                                           }
+                         else prevSt {status = LevelComplete }
+        Auto          -> if prevBricks /= [] then
+                            case userInput of 
+                                Just Stop  -> prevSt {status = Stopped    }
+                                Just Pause -> prevSt {status = Paused     }
+                                _  -> St 
+                                           { position   = (newX, newY)
+                                           , direction  = (newXDir, newYDir)
+                                           , bXPosition = newBXPos
+                                           , bricks     = newBricks
+                                           , walls      = newWalls
+                                           , points     = newPoints
+                                           , userInputs = newInputs
+                                           , status     = newStatus
                                            }
                          else prevSt {status = LevelComplete }
 
@@ -139,14 +156,17 @@ nextInternal (Env _ _ (width, height) velocity baselength bricklength _ _ _ wall
 
  -- | Position control of the base limited by the width - Repeating Input interrupts the action
     
-    newBXPos = baseDecisionTree userInput readInputs (moveBase (-2)) (moveBase ( 2)) prevBXPos 
+    newBXPos = case prevStatus of 
+                    Auto -> restricted (prevX - div baselength 2)
+                    _    -> baseDecisionTree userInput readInputs (moveBase (-2)) (moveBase ( 2)) prevBXPos 
 
-    moveBase i = let newBxPos = prevBXPos + i
-                       in if newBxPos + baselength >= width
+    moveBase i = let newBxPos = prevBXPos + i in restricted newBxPos
+
+    restricted position = if position + baselength >= width
                           then width - baselength
-                          else if newBxPos <= 0
+                          else if position <= 0
                                then 0
-                               else newBxPos
+                               else position
 
  -- | Detection of collision with the base
     
@@ -166,15 +186,29 @@ nextInternal (Env _ _ (width, height) velocity baselength bricklength _ _ _ wall
  -- | Identification of the coordinate that will be impacted according to ball direction for three 
  -- | different cases: Collision with top or botton (brickCollisionY), collision with one side (brickCollisionX)   
  -- | or collision with a corner (cornerCollision)
-    
+
     targetX                = ( newX + directionToMultiplier prevXDir, newY)
     targetY                = ( newX, newY + directionToMultiplier prevYDir)
     cornerTarget           = ( newX + directionToMultiplier prevXDir
                              , newY + directionToMultiplier prevYDir )
-    brickCollisionY        = elem targetY $ completePositions prevBricks
-    brickCollisionX        = elem targetX $ completePositions prevBricks
-    cornerCollision        = not brickCollisionX && not brickCollisionY 
-                           && elem cornerTarget (completePositions prevBricks)
+
+    impossibleXCollision   = elem (bouncedTargetX, snd targetY) $ completePositions prevBricks
+    impossibleYCollision   = elem (fst targetX, bouncedTargetY) $ completePositions prevBricks
+
+    bouncedTargetX         = newX + directionToMultiplier prevXDir * velocity * (-1)
+    bouncedTargetY         = newY + directionToMultiplier prevYDir * velocity * (-1)
+
+    brickCollisionX        = elem targetX      $ completePositions prevBricks
+    brickCollisionY        = elem targetY      $ completePositions prevBricks
+    cornerCollision        = elem cornerTarget $ completePositions prevBricks
+
+    xBrickBounce           = brickCollisionX && not impossibleXCollision
+    yBrickBounce           = brickCollisionY && not impossibleYCollision
+    bounceBack             = cornerCollision && not xBrickBounce && not yBrickBounce
+                          || ( brickCollisionX && impossibleXCollision )
+                          || ( brickCollisionY && impossibleYCollision )
+                          || ( (newXUnbounded <= 0 || newXUnbounded >= width) && impossibleXCollision )
+                          || ( newYUnbounded <= 0 && impossibleYCollision )
 
     wallCollisionX         = case prevWalls of
                                  Just wall -> wallCollision wall targetX
@@ -192,18 +226,6 @@ nextInternal (Env _ _ (width, height) velocity baselength bricklength _ _ _ wall
                                      in case w of (Left  xPos) -> condition xPos 
                                                   (Right xPos) -> condition xPos
 
- -- | Identification of the block that will be hit.
-    
-    targetBlockY           = identify targetY      prevBricks
-    targetBlockX           = identify targetX      prevBricks
-    targetBlockC           = identify cornerTarget prevBricks
-
- -- | Filters the only brick that is hit by the ball given a target position and a list of Bricks.
-    
-    identify target        = head . filter (\u -> snd target == snd (brickPosition u) 
-                                               && fst target -  fst (brickPosition u) < bricklength 
-                                               && fst target -  fst (brickPosition u) >= 0          )
-    
  -- | Update positions and directions for next state
     
     newX =
@@ -219,56 +241,49 @@ nextInternal (Env _ _ (width, height) velocity baselength bricklength _ _ _ wall
     newXDir =
         case prevXDir of
             Neutral  -> Neutral
-            Positive ->
-                if newXUnbounded >= width  || brickCollisionX || cornerCollision || wallCollisionX || wallCornerCollision || baseCornerCollision
-                then Negative
-                else Positive
-            Negative ->
-                if newXUnbounded <= 0      || brickCollisionX || cornerCollision || wallCollisionX || wallCornerCollision || baseCornerCollision
-                then Positive
-                else Negative
+            Positive -> if newXUnbounded >= width || wallCollisionX || wallCornerCollision || xBrickBounce || bounceBack || baseCornerCollision
+                        then Negative
+                        else Positive
+            Negative -> if newXUnbounded <= 0     || wallCollisionX || wallCornerCollision || xBrickBounce || bounceBack || baseCornerCollision
+                        then Positive
+                        else Negative
     newYDir =
         case prevYDir of
             Neutral  -> Neutral
-            Positive -> if brickCollisionY || cornerCollision || baseCollision   || wallCollisionY || wallCornerCollision || baseCornerCollision
-                            then Negative
-                            else Positive
-            Negative ->
-                if newYUnbounded <= 0      || brickCollisionY || cornerCollision || wallCollisionY || wallCornerCollision
-                then Positive
-                else Negative
+            Positive -> if brickCollisionY        || wallCollisionY || wallCornerCollision || yBrickBounce || bounceBack || baseCornerCollision || baseCollision
+                        then Negative
+                        else Positive
+            Negative -> if newYUnbounded <= 0     || wallCollisionY || wallCornerCollision || yBrickBounce || bounceBack 
+                        then Positive
+                        else Negative
     
  -- | Update status in case the player is unable to bounce back the ball
     
-    newStatus = if newY /= height then Playing else Stopped
+    newStatus = if newY == height then Stopped else prevStatus
  
  -- | Update the score in case of any brick collision 
     
-    newPoints = (+) prevPoints $ fromEnum $ brickCollisionY || brickCollisionX || cornerCollision
-    
+    newPoints = (+) prevPoints $ fromEnum $ xBrickBounce || yBrickBounce || bounceBack
+
+ -- | Identification of the block that will be hit
+
+    targetBricks = let identify target = filter (\u -> snd target == snd (brickPosition u) 
+                                       && fst target -  fst (brickPosition u) < bricklength 
+                                       && fst target -  fst (brickPosition u) >= 0          ) prevBricks
+                    in if xBrickBounce && yBrickBounce then identify targetX ++ identify targetY
+                  else if xBrickBounce                 then identify targetX
+                  else if                 yBrickBounce then identify targetY
+                  else if bounceBack                   then if ( cornerCollision && not xBrickBounce && not yBrickBounce )
+                                                            then identify cornerTarget
+                                                            else if impossibleXCollision
+                                                                 then identify targetX ++ identify (bouncedTargetX, snd targetY)
+                                                                 else identify targetY ++ identify (fst targetX, bouncedTargetY)
+                                                                 else []
+
  -- | Update the bricks state according to collisions. Brick disappears if life = 0
     
-    newBricks   -- | Case 1: Collision in Y axis AND X axis (Two bricks at the same time)
-              
-              | brickCollisionX && brickCollisionY 
-                                = changeBricks targetBlockY $ changeBricks targetBlockX prevBricks
-             
-                -- | Case 2: Collision in Y axis
-              
-              | brickCollisionY = changeBricks targetBlockY prevBricks
-             
-                -- | Case 3: Collision in X axis
-             
-              | brickCollisionX = changeBricks targetBlockX prevBricks
-             
-                -- | Case 4: Collision with a corner
-             
-              | cornerCollision = changeBricks targetBlockC prevBricks
-             
-                -- | Case 5: No collision
-             
-              | otherwise = prevBricks
- 
+    newBricks = foldl (flip changeBricks) prevBricks targetBricks
+
  -- | Update the life of the bricks
     
     changeBricks x bricks = let brickTail  = filter ((/=) (brickPosition x) . brickPosition) bricks
