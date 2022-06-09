@@ -137,16 +137,13 @@ makeBox (numCols, numRows) baseL baseX ballPositions bricklength bricks multipli
                                      Stopped       -> indent ++ "Press: (R) to Restart              "    ++ "\n" ++ "\n"    -- "\n" Necessary for inline space coherence
 
                                      Paused        -> indent ++ "Press (P) to keep playing / (SPACE) Auto Mode"  ++ "\n"
-                                                   ++ indent ++ "Player 1: (A) Move Left       / (D) Move Right" ++ "\n"
-                                                   ++ indent ++ "Player 2: (J) Left Smart Wall / (L) Right Smart Wall"
+                                                   ++ indent ++ "(A) Move Left / (D) Move Right"                 ++ "\n"
 
                                      Playing       -> indent ++ "(P) Pause / (Q) Stop / (SPACE) Auto Mode"       ++ "\n"
-                                                   ++ indent ++ "Player 1: (A) Move Left / (D) Move Right"       ++ "\n"
-                                                   ++ indent ++ "Player 2: (J) Left Wall / (L) Right Wall"
+                                                   ++ indent ++ "(A) Move Left / (D) Move Right"                 ++ "\n"
 
                                      Starting      -> indent ++ "Press: (S) to Play / (R) to rearrange Bricks"   ++ "\n"
-                                                   ++ indent ++ "Player 1: (A) Move Left       / (D) Move Right" ++ "\n"
-                                                   ++ indent ++ "Player 2: (J) Left Smart Wall / (L) Right Smart Wall"
+                                                   ++ indent ++ "(A) Move Left / (D) Move Right"                 ++ "\n"
 
                                      Auto          -> indent ++ "(P) Pause / (Q) Stop"                           ++ "\n"
                                                    ++ indent ++ "Pause the game to remove Auto Mode"             ++ "\n"

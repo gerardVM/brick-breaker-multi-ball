@@ -159,7 +159,7 @@ nextInternal (Env _ _ (width, height) velocity baselength bricklength _ _ maxBal
 
  -- Removing positions and directions for lost balls
 
-    removeBalls = filter (\pair -> snd (fst pair) < height )  -- CHANGE FOR THE EASY FUNCTION
+    removeBalls = filter ( (>) height . snd . fst )
 
  -- New_Unbounded tells us which would be the position of the ball if there is no bounding. Also we need to know just edge bounded positions.
    
