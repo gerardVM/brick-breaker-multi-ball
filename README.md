@@ -16,6 +16,12 @@ cd brick-breaker-multi-ball &&
 cabal run
 ```
 
+## Trying it with Docker
+
+```bash
+docker run --rm -it gerardvm/brick-breaker-multi-ball
+```
+
 ## Usage
 
 Player's objective is to break all the bricks by maintaining at least one ball above the floor

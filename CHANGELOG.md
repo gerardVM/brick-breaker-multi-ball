@@ -1,5 +1,9 @@
 # Revision history for finale
 
+## 0.2.1.0 -- 2022-06-22
+
+New libraries improve compatibility with special characters
+
 ## 0.2.0.0 -- 2022-06-04
 
 Auto Mode feature included
