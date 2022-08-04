@@ -46,8 +46,8 @@ putInitialState = do
         lift $ put $ St [(div width 2, height - 2)]
                         [(dirX       , Negative  )]
                         (div (width - baselength) 2)
-                        (level_1 env)
-                        -- (bricksInPlace width distBricks lifes bricklength)
+                        -- (level_1 env)                                    -- Uncomment to use your premade lavel from lib/Levels/Levels.hs
+                        (bricksInPlace width distBricks lifes bricklength)  -- Uncomment to use random position ob bricks.
                         [] 
                         0 
                         [] 

@@ -21,9 +21,9 @@ defaultEnv :: Env
 defaultEnv =
     Env { title       = "BRICK BREAKER VIDEOGAME (MULTI-BALL)"
         , fps         = 20
-        , size        = (100, 22)
+        , size        = (80, 18)
         , velocity    = 1
-        , baselength  = 5 * fst (size defaultEnv) `div` 100     
+        , baselength  = 10 * fst (size defaultEnv) `div` 100     
         , bricklength = 2
         , numOfBricks = 0
         , lifes       = 2
