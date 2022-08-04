@@ -26,7 +26,7 @@ cd brick-breaker-multi-ball &&
 docker build --no-cache -t haskell-app . &&
 docker run --rm -it haskell-app
 ```
-Option 2: Run the premade Docker image
+Option 2: Run the pre-built Docker image
 
 ```bash
 docker run --rm -it gerardvm/brick-breaker-multi-ball
