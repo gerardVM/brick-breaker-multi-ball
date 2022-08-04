@@ -23,7 +23,7 @@ Option 1: By building the Docker image from the Dockerfile
 ```bash
 git clone https://github.com/gerardVM/brick-breaker-multi-ball.git &&
 cd brick-breaker-multi-ball &&
-docker build -t haskell-app . &&
+docker build --no-cache -t haskell-app . &&
 docker run --rm -it haskell-app
 ```
 Option 2: Run the premade Docker image
