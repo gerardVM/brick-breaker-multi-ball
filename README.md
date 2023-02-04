@@ -8,10 +8,10 @@ Brick Breaker Multi-Ball is the Multi-Ball fork of my own Brick Breaker videogam
 
 ## Installation
 
-Run the Docker image
+Clone this repository and build and run the Docker image
 
 ```bash
-docker run --rm -it gerardvm/brick-breaker-multi-ball
+docker build -t bb-mb . && docker run --rm -it bb-mb
 ```
 
 ## Usage
